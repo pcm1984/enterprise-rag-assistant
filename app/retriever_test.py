@@ -3,7 +3,15 @@ from retriever import retrieve
 
 query = "How should Kafka consumers handle duplicate messages?"
 
-results = retrieve(query, top_k=3)
+roles = ["developer", "architect"]
+
+results = retrieve(
+    query,
+    roles=roles,
+    top_k=5
+)
+
+print(f"\n=== RESULTS FOR ROLES: {roles} ===")
 
 for result in results:
     print("\nDistance:", result["distance"])

@@ -13,9 +13,16 @@ def create_embedding(text):
 
     return response.json()["embeddings"][0]
 
+def retrieve(query, roles, top_k=5):
 
-def retrieve(query, top_k=5):
+    if not roles:
+        return []
+
     query_embedding = create_embedding(query)
+
+    placeholders = ", ".join(
+        ["%s"] * len(roles)
+    )
 
     connection = psycopg.connect(
         "dbname=enterprise_rag"
@@ -23,18 +30,25 @@ def retrieve(query, top_k=5):
 
     with connection.cursor() as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT
-                document,
-                section,
-                content,
-                embedding <=> %s::vector AS distance
-            FROM rag_chunks
-            ORDER BY embedding <=> %s::vector
+                c.document,
+                c.section,
+                c.content,
+                c.embedding <=> %s::vector AS distance
+            FROM rag_chunks c
+            WHERE EXISTS (
+                SELECT 1
+                FROM rag_chunk_roles r
+                WHERE r.chunk_id = c.id
+                  AND r.role IN ({placeholders})
+            )
+            ORDER BY c.embedding <=> %s::vector
             LIMIT %s
             """,
             (
                 query_embedding,
+                *roles,
                 query_embedding,
                 top_k
             )
@@ -42,18 +56,18 @@ def retrieve(query, top_k=5):
 
         rows = cursor.fetchall()
 
-        connection.close()
+    connection.close()
 
-        results = []
+    results = []
 
-        for document, section, content, distance in rows:
-            results.append(
-               { 
-                   "document": document,
-                   "section": section,
-                   "content": content,
-                   "distance": distance
-               }
-            )
+    for document, section, content, distance in rows:
+        results.append(
+            {
+                "document": document,
+                "section": section,
+                "content": content,
+                "distance": distance
+            }
+        )
 
-        return results
+    return results

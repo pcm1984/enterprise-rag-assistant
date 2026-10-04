@@ -58,13 +58,19 @@ Answer:
     return response.json()["response"]
 
 
-def answer_question(question, top_k=5):
+def answer_question(question, roles, top_k=5):
 
     results = retrieve(
         question,
+        roles=roles,
         top_k=top_k
     )
 
+    if not results:
+        return {
+            "answer": "I don't know based on the available documentation.",
+            "results": []
+        }
     context = build_context(results)
 
     answer = generate_answer(
@@ -78,17 +84,25 @@ def answer_question(question, top_k=5):
     }
 
 
-question = input("Ask a question: ")
+if __name__ == "__main__":
 
-result = answer_question(question)
+    question = input("Ask a question: ")
 
-print("\n=== ANSWER ===")
-print(result["answer"])
+    roles = ["developer", "architect"]
 
-print("\n=== SOURCES ===")
-
-for source in result["results"]:
-    print(
-        f"- {source['document']} — "
-        f"{source['section']}"
+    result = answer_question(
+        question,
+        roles=roles
     )
+
+    print("\n=== ANSWER ===")
+    print(result["answer"])
+
+    if result["results"]:
+        print("\n=== SOURCES ===")
+
+        for source in result["results"]:
+            print(
+                f"- {source['document']} — "
+                f"{source['section']}"
+            )
